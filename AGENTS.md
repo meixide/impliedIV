@@ -65,12 +65,14 @@ No assumption of "no unmeasured confounding of the treatment" is needed.
 ```r
 install.packages(c("remotes", "glmnet", "testthat"))
 remotes::install_github("meixide/hapc")     # nuisance learner (C++; needs a compiler)
-install.packages("impliedIV_0.1.0.tar.gz", repos = NULL, type = "source")
-# or, from the source folder: devtools::install("impliedIV")
+remotes::install_github("meixide/impliedIV", build_vignettes = TRUE)
+# private repository: the user sets a GitHub token first (Sys.setenv(GITHUB_PAT = ...));
+# never write the token into a file or a message
+# alternative: git clone https://github.com/meixide/impliedIV && devtools::install("impliedIV")
 library(impliedIV)
 ```
 
-Run the tests from the source folder: `devtools::test()` (≈ 5 s, all must
+Run the tests from a clone of the repository: `devtools::test()` (≈ 5 s, all must
 pass). If hapc does not install, the whole pipeline still runs with
 `learner = learner_glm`, but report that hapc was not used.
 
