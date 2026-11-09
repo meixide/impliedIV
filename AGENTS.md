@@ -201,9 +201,12 @@ bt <- lii_bootstrap(d, alphas = c(0.5, 1, 1.5), learner = learner_hapc, B = 200)
 **Inference.**
 - `fit$estimates` SEs come from the influence curve. They are valid for the
   *data-adaptive* parameter, which treats the estimated instrument intensity
-  as known. They can be slightly short for the parameter defined with the
-  true intensity: in simulation, coverage was 0.92–0.95 with glm.
-- `lii_bootstrap()` targets the latter.
+  as known.
+- In simulation with glm, coverage was 0.92–0.95, about 2 points short.
+  `lii_bootstrap()`, which refits everything and targets the parameter
+  defined with the true intensity, gave the same SEs and the same coverage
+  (VALIDATION.md).
+- Use the bootstrap as a check when time allows, not as a fix.
 - Report which one you used.
 
 ## 6. What to report back (aggregated only)

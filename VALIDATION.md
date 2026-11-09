@@ -43,14 +43,30 @@ and `waldo`, now declared in Suggests).
 - The influence-curve SE is about 95% of the Monte Carlo sd, so coverage is
   0.92–0.95. The Monte Carlo error of a coverage with 200 replications is
   about ±0.03.
-- The shortfall is the one expected: the truth here is the parameter defined
-  with the *true* instrument intensity λ, whose influence curve has an extra
-  term (λ̂ is estimated). That term is ignored by the influence-curve SE,
-  which targets the data-adaptive parameter.
+- At first the shortfall was attributed to the variability of λ̂, which the
+  influence-curve SE ignores. **Section 3 rules that out in this DGP**: the
+  bootstrap, which refits λ̂, gives the same SEs. The cause is still open:
+  finite-sample bias of the SE estimator, glm misspecification of the
+  sequential regressions, or Monte Carlo error.
 
 ## 3. Bootstrap CIs, `learner_glm` (`coverage_bootstrap_glm.R 100 100 1000`)
 
-PENDING_BOOTSTRAP
+100 replications, B = 100 resamples, n = 1000, percentile CIs.
+
+| α | coverage | contrast coverage | mean bootstrap SE | mean contrast bootstrap SE |
+|---|---|---|---|---|
+| 0.5 | 0.91 | 0.92 | 0.0213 | 0.0128 |
+| 1.0 | 0.94 | — | 0.0163 | — |
+| 1.5 | 0.96 | 0.91 | 0.0193 | 0.0114 |
+
+- The bootstrap SEs are practically equal to the influence-curve SEs of
+  section 2 (0.0211, 0.0160 and 0.0189; contrasts 0.0128 and 0.0112).
+- Coverage is in the same range, with Monte Carlo error ±0.045 for 100
+  replications.
+- In this DGP, the extra influence-curve term from estimating λ is
+  negligible, and the bootstrap brings no improvement over the
+  influence-curve CIs. It remains the principled route for the fixed
+  parameter, and its cost is B full fits.
 
 ## 4. End-to-end run with `learner_hapc` (`run_hapc.R 1000`)
 
