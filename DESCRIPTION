@@ -1,0 +1,27 @@
+Package: impliedIV
+Type: Package
+Title: Longitudinal Implied Interventions by Scaling an Instrument's Intensity
+Version: 0.1.0
+Authors@R: person("Carlos", "García Meixide", email = "carlos.garcia@icmat.es",
+                  role = c("aut", "cre"))
+Description: Estimates the mean outcome under stochastic interventions that
+    multiply, by a factor alpha, the probability that a binary time-varying
+    instrument (for example a prescription or a monitoring visit) fires at
+    each visit, when the treatment it encourages (for example adherence) may
+    be confounded with the outcome by unmeasured factors. The estimator is a
+    longitudinal targeted maximum likelihood estimator (sequential regression)
+    with monotone censoring; nuisance functions are estimated with Highly
+    Adaptive Principal Components (package 'hapc') by default. Also reports
+    the implied intervention on the treatment, and provides tools to build
+    physician-preference instruments and to test the assumption that only the
+    current instrument acts on the current treatment. Methodology:
+    García Meixide and van der Laan, "Longitudinal implied interventions"
+    (in preparation).
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: stats, graphics
+Suggests: hapc (>= 2.7.1), glmnet, testthat (>= 3.0.0), knitr, rmarkdown, glue, waldo
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+RoxygenNote: 7.2.3

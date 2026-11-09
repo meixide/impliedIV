@@ -1,0 +1,58 @@
+seconds: 403 
+Implied interventions: mean of Y under alpha-scaling of the instrument
+n =1000 visits 0..2  (SEs from the influence curve: data-adaptive parameter)
+
+ alpha estimate      se             ci95 diff_vs_1          diff_ci95 p_capped
+   0.5   0.3443 0.02280 [0.2996, 0.3890]   0.05310   [0.0244, 0.0818] 0.000000
+   1.0   0.2912 0.01619 [0.2595, 0.3230]   0.00000   [0.0000, 0.0000] 0.000000
+   1.5   0.2527 0.01939 [0.2147, 0.2907]  -0.03855 [-0.0618, -0.0153] 0.003656
+ min_n_eff
+       418
+       761
+       487
+          alpha  estimate     lower     upper    truth
+alpha_0.5   0.5 0.3443181 0.2996268 0.3890094 0.317152
+alpha_1     1.0 0.2912169 0.2594825 0.3229513 0.288505
+alpha_1.5   1.5 0.2526668 0.2146603 0.2906733 0.261821
+        min     q05    median      mean       q95       max share_below_0.05
+1 0.2376154 0.30491 0.4468898 0.4364175 0.5466444 0.6240931                0
+            model learner    n  p      lambda lambda_position mean_y seconds
+1          lambda    hapc 2735  6 0.049787068        interior 0.3492   107.1
+2             g_R    hapc 2735  8 0.049787068        interior 0.3492   117.2
+3             g_C    hapc 2735 10 0.223130160        interior 0.9163   133.3
+4             pi0    hapc 1780  6 0.082084999        interior 0.2219    31.1
+5             pi1    hapc  955  6 0.082084999        interior 0.7162     5.8
+6           Q2_R0    hapc  542  7 0.367879441        interior 0.2583     1.2
+7           Q2_R1    hapc  229  7 0.223130160        interior 0.3275     0.5
+8  Q1_alpha0.5_R0    hapc  555  7 0.006737947        interior 0.3130     1.6
+9  Q1_alpha0.5_R1    hapc  278  7 0.011108997        interior 0.3166     0.2
+10 Q0_alpha0.5_R0    hapc  547  2 0.002478752        interior 0.3380     0.7
+11 Q0_alpha0.5_R1    hapc  355  2 0.006737947        interior 0.3180     0.3
+12   Q1_alpha1_R0    hapc  555  7 0.004086771        interior 0.2822     1.0
+13   Q1_alpha1_R1    hapc  278  7 0.006737947        interior 0.2881     0.2
+14   Q0_alpha1_R0    hapc  547  2 0.002478752        interior 0.2944     0.8
+15   Q0_alpha1_R1    hapc  355  2 0.004086771        interior 0.2794     0.3
+16 Q1_alpha1.5_R0    hapc  555  7 0.004086771        interior 0.2611     0.9
+17 Q1_alpha1.5_R1    hapc  278  7 0.006737947        interior 0.2693     0.2
+18 Q0_alpha1.5_R0    hapc  547  2 0.002478752        interior 0.2627     0.6
+19 Q0_alpha1.5_R1    hapc  355  2 0.004086771        interior 0.2523     0.2
+   subsampled
+1       FALSE
+2       FALSE
+3       FALSE
+4       FALSE
+5       FALSE
+6       FALSE
+7       FALSE
+8       FALSE
+9       FALSE
+10      FALSE
+11      FALSE
+12      FALSE
+13      FALSE
+14      FALSE
+15      FALSE
+16      FALSE
+17      FALSE
+18      FALSE
+19      FALSE

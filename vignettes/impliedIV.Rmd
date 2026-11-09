@@ -1,0 +1,123 @@
+---
+title: "Longitudinal implied interventions with impliedIV"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Longitudinal implied interventions with impliedIV}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## The question
+
+At each visit $j = 0, \dots, K$ a clinician may prescribe a drug, $R(j) \in \{0, 1\}$,
+and the patient may take it, $A(j) \in \{0, 1\}$. Taking it depends on things
+we do not observe (motivation, frailty) that also affect the outcome $Y$, so
+comparing those who took the drug with those who did not is confounded. The
+prescription, on the other hand, is driven by what the clinician sees and
+records: given the observed history $F_j = (\bar L(j), \bar A(j-1))$ it is as
+good as random. It affects the outcome only through whether the drug is taken.
+
+Intervening on the treatment directly is neither identified nor realistic.
+What a health system can change is how often drugs are prescribed. The package
+estimates
+$$\psi(\alpha) = E\bigl[Y^{h^*_\alpha}\bigr], \qquad h^*_{\alpha,j}(1 \mid F_j) = \alpha\,\lambda_j(F_j),\quad \lambda_j(F_j) = P(R(j)=1 \mid F_j),$$
+the mean outcome if prescriptions were $\alpha$ times as frequent as they are
+now, for every type of patient.
+- The intervention multiplies the intensity of the prescription process. It
+  puts no mass where prescriptions never happen, so positivity holds for
+  $\alpha \le 1$. For $\alpha > 1$ the probability is capped at 1 where
+  $\alpha\lambda_j > 1$.
+- Under the exclusion restriction, and if only the current prescription acts
+  on the current treatment, $\psi(\alpha)$ is also the effect of the
+  **implied** intervention on the treatment,
+  $$g_j(\alpha)(F_j) = \pi_0(F_j) + \alpha\,\lambda_j(F_j)\,[\pi_1(F_j) - \pi_0(F_j)], \qquad \pi_r = P(A(j)=1 \mid R(j)=r, F_j).$$
+
+  Only the part of treatment that responds to the prescription moves.
+
+## A simulated example
+
+`simulate_lii()` generates this structure with an unmeasured confounder `U`
+of adherence and outcome, and censoring.
+
+```{r}
+library(impliedIV)
+sim <- simulate_lii(n = 1500, K = 2, seed = 1)
+head(sim$data)
+d <- lii_data(sim$data, id = "id", time = "visit", instrument = "R", treatment = "A",
+              outcome = "Y", covariates = "L", baseline = "W")
+d
+lii_describe(d)
+```
+
+The main analysis uses `learner = learner_hapc` (Highly Adaptive Principal
+Components). Here `learner_glm` keeps the vignette fast.
+
+```{r}
+fit <- lii_tmle(d, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_glm, verbose = FALSE)
+fit
+```
+
+```{r, fig.width = 6, fig.height = 4}
+plot(fit, diff = TRUE)
+```
+
+The true values of this simulation, by Monte Carlo:
+
+```{r}
+round(sim$truth(fit$estimates$alpha, n_mc = 2e5), 4)
+```
+
+## Diagnostics
+
+```{r}
+dg <- lii_diagnostics(fit)
+dg$first_stage         # pi1 - pi0: strength of the instrument
+dg$alpha_max_uncapped  # alphas above this are capped somewhere
+dg$weights
+```
+
+## The implied intervention and an interpretable scale for alpha
+
+```{r}
+subset(fit$implied, visit == 0)
+```
+
+`implied_p_treat` averages $g_j(\alpha)$ over the observed histories. To
+know how much more treatment each $\alpha$ means in the intervened world,
+estimate the mean proportion of visits with treatment, and calibrate:
+
+```{r}
+ft <- lii_tmle(lii_treatment_outcome(d), alphas = fit$settings$alphas,
+               learner = learner_glm, verbose = FALSE)
+ft$estimates[, c("alpha", "estimate", "lower", "upper")]
+calibrate_alpha(ft, ratio = c(1.1, 1.2))
+```
+
+## Inference
+
+The standard errors of `lii_tmle()` come from the influence curve, treating
+the estimated $\alpha\hat\lambda$ as the intervention: this is the
+data-adaptive parameter. For the parameter defined with the true $\lambda$,
+`lii_bootstrap()` refits everything in each resample.
+
+## Checking "only the current instrument acts on the current treatment"
+
+```{r}
+lag_sufficiency_test(sim$data, "id", "visit", "R", "A", covariates = "L", lags = 1)$p_value
+```
+
+## Preference instruments
+
+When the data contain prescriptions but no adherence, a common instrument is
+the prescriber's preference. `preference_instrument()` computes it from an
+order log:
+- leaving the patient out;
+- using only orders before the encounter;
+- with a trend term.
+
+Its lagged values can be tested with `lag_sufficiency_test()`. See
+`AGENTS.md` for how this fits the estimator, which needs a binary instrument.

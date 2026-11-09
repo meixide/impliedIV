@@ -1,0 +1,6 @@
+*.Rcheck/
+*.tar.gz
+.Rhistory
+.RData
+.DS_Store
+.claude/
