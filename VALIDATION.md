@@ -10,7 +10,7 @@ Scripts are in `inst/validation/`; results are in
 
 ## 1. Unit tests (`devtools::test()`)
 
-35 expectations, all passing (≈ 5 s), including the projection: a reachable target is reached, KL decreases, its effect equals lii_tmle at the same alpha, per-visit targets, and targets beyond the reachable range.
+41 expectations, all passing (≈ 8 s), including a check that learner_hapc calls cv.hapc with family = "binomial", norm = "1" (needed for the soft labels) and works with hard and soft labels, and the projection: a reachable target is reached, KL decreases, its effect equals lii_tmle at the same alpha, per-visit targets, and targets beyond the reachable range.
 - Data preparation and censoring.
 - Rejection of non-binary instruments and of NA covariates.
 - Rescaling of continuous outcomes.

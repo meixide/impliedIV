@@ -10,7 +10,13 @@
 #'
 #' * `learner_hapc()` (default): Highly Adaptive Principal Components with
 #'   an L1 penalty and cross-validated lambda, via [hapc::cv.hapc()]
-#'   (`family = "binomial"`, `norm = "1"`). The HAL kernel is n x n, so fits
+#'   (`family = "binomial"`, `norm = "1"`). `norm = "1"` (logistic lasso on the
+#'   HAPC basis, through glmnet) is fixed on purpose: the sequential
+#'   regressions have soft labels in \[0, 1\], which hapc supports only with
+#'   `norm = "1"` or `"2"`. Defaults (`max_degree = 2`, `floor(n^0.7)`
+#'   components, 5 folds, log-lambda grid from -8 to -1 with 15 points,
+#'   extended up to 3 times when the optimum is on an edge) are those of
+#'   the `tmle2t` package. The HAL kernel is n x n, so fits
 #'   with more than `max_n` rows use a random subsample of `max_n` rows
 #'   (recorded in [lii_fit_log()]). If a fit fails, the main-terms logistic
 #'   regression is used instead and the failure is recorded.
@@ -50,6 +56,8 @@ learner_hapc <- function(X, Y, newdata, label = "", max_degree = 2L, npc_pow = 0
   if (!requireNamespace("hapc", quietly = TRUE))
     stop("learner_hapc() needs the 'hapc' package: remotes::install_github('meixide/hapc'). ",
          "Use learner = learner_glm for a quick run without it.")
+  if (!requireNamespace("glmnet", quietly = TRUE))
+    stop("learner_hapc() needs 'glmnet' (hapc's norm = \"1\" path): install.packages('glmnet').")
   X <- .clean(X); newdata <- .clean(newdata); keep <- .nonconstant(X)
   if (stats::sd(Y) < 1e-12 || !any(keep)) return(rep(mean(Y), nrow(newdata)))
   X <- X[, keep, drop = FALSE]; newdata <- newdata[, keep, drop = FALSE]
