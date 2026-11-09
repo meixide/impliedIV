@@ -12,6 +12,6 @@ test_that("learner_hapc calls cv.hapc with binomial, norm = '1', and handles sof
   expect_equal(lg$learner, c("hapc", "hapc"))
   expect_true(all(lg$lambda_position %in% c("interior", "lower_edge", "upper_edge", "null_model")))
   ## the call really uses norm = "1": its argument list is fixed in the source
-  src <- paste(deparse(body(learner_hapc)), collapse = "")
+  src <- gsub("[[:space:]]+", " ", paste(deparse(body(learner_hapc)), collapse = " "))
   expect_match(src, 'family = "binomial", norm = "1"', fixed = TRUE)
 })
