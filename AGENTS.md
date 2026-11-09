@@ -20,6 +20,18 @@ of patient. Formally, its probability given the covariate-treatment history,
 - `alpha = 1.2`: 20% more prescriptions, proportionally to current practice.
 - `alpha = 0.5`: half as many.
 
+The usual question is about the treatment ("what if patients took the drug
+20% more often?"), which is not identified when the treatment is confounded.
+`lii_project()` turns it into the closest identifiable question. It finds the
+instrument scaling `alpha` (one per visit if wanted) whose implied treatment
+mechanism is closest, in Kullback–Leibler divergence, to the desired one.
+Then it estimates the effect of that projected intervention.
+- The instrument can move the treatment only between `pi0` (it never fires)
+  and `pi1` (it always fires).
+- A desired intervention outside that range is not reachable, and the result
+  is then the effect of the closest reachable intervention.
+- Always report `target_p_treat` against `implied_p_treat`.
+
 It also reports the **implied intervention** on the treatment,
 `g_j(alpha) = pi0 + alpha * lambda_j * (pi1 - pi0)`, where `pi_r = P(A(j)=1 | R(j)=r, history)`.
 `pi0` is untouched; only the instrument-driven part of treatment moves.
@@ -140,6 +152,13 @@ fit_glm <- lii_tmle(d, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_gl
 ## 2) main analysis, nuisances with hapc
 lii_reset_log()
 nu  <- lii_nuisance(d, learner = learner_hapc)          # fits that do not depend on alpha
+
+## 2a) the question about the TREATMENT: project it and estimate its effect
+pr <- lii_project(d, target = 1.2, nuisance = nu, learner = learner_hapc)   # "20% more treatment"
+pr   # alpha, target vs implied treatment probability per visit, reachable range, effect + CI
+## one factor per visit: target = c(1.1, 1.2, 1.3); any rule: target = function(visit, history) ...
+
+## 2b) the whole curve in alpha (instrument scalings)
 fit <- lii_tmle(d, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_hapc, nuisance = nu)
 fit; plot(fit); plot(fit, diff = TRUE)
 dg <- lii_diagnostics(fit)
@@ -177,6 +196,7 @@ bt <- lii_bootstrap(d, alphas = c(0.5, 1, 1.5), learner = learner_hapc, B = 200)
 | Learner fits | `dg$fits` (`lii_fit_log()`) | many `upper_edge`/`null_model` (learner ignored the regressors), `hapc_failed_glm_used`, `subsampled` |
 | Assumption: current instrument only | `lag_sufficiency_test()` | p < 0.05 |
 | hapc vs glm | `fit` vs `fit_glm` | large disagreement → investigate before reporting |
+| Projection reaches the target | `pr$projection`: `implied_p_treat` vs `target_p_treat`, `reachable_min/max` | target outside the reachable range → the effect is that of the closest reachable intervention; say so |
 
 **Inference.**
 - `fit$estimates` SEs come from the influence curve. They are valid for the
@@ -192,7 +212,7 @@ bt <- lii_bootstrap(d, alphas = c(0.5, 1, 1.5), learner = learner_hapc, B = 200)
    - `print(d)` and `lii_describe(d)`.
    - Definitions of `R`, `A`, `Y`, the visits, `K`, the covariates.
    - Cohort selection and number of subjects excluded, with reasons.
-2. `fit$estimates` and `fit_glm$estimates`.
+2. `pr$alpha`, `pr$projection`, `pr$effect`; `fit$estimates` and `fit_glm$estimates`.
 3. `subset(fit$implied, visit == 0)`, or the whole table.
 4. `dg$first_stage`, `dg$alpha_max_uncapped`, `dg$weights`, `dg$censoring`,
    `dg$fits`.

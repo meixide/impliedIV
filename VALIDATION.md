@@ -10,7 +10,7 @@ Scripts are in `inst/validation/`; results are in
 
 ## 1. Unit tests (`devtools::test()`)
 
-28 expectations, all passing (≈ 4 s).
+35 expectations, all passing (≈ 5 s), including the projection: a reachable target is reached, KL decreases, its effect equals lii_tmle at the same alpha, per-visit targets, and targets beyond the reachable range.
 - Data preparation and censoring.
 - Rejection of non-binary instruments and of NA covariates.
 - Rescaling of continuous outcomes.

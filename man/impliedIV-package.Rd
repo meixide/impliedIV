@@ -6,7 +6,9 @@
 \alias{impliedIV-package}
 \title{impliedIV: longitudinal implied interventions by scaling an instrument}
 \description{
-Workflow: [lii_data()] -> [lii_describe()] -> [lii_tmle()] ->
+Workflow: [lii_data()] -> [lii_describe()] -> [lii_project()] (desired
+treatment intervention -> closest instrument intervention and its effect)
+and/or [lii_tmle()] (a grid of instrument scalings) ->
 [lii_diagnostics()] -> optionally [lii_bootstrap()],
 [lii_treatment_outcome()] + [calibrate_alpha()]. Tools for building
 instruments: [preference_instrument()], [binarize_instrument()],

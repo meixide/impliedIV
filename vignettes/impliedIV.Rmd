@@ -71,6 +71,26 @@ The true values of this simulation, by Monte Carlo:
 round(sim$truth(fit$estimates$alpha, n_mc = 2e5), 4)
 ```
 
+## Asking about the treatment: projection
+
+"What if adherence were 20% higher?" is a question about the treatment.
+`lii_project()` finds the instrument scaling whose implied treatment
+mechanism is closest (in Kullback–Leibler divergence) to the desired one, and
+estimates its effect:
+
+```{r}
+pr <- lii_project(d, target = 1.2, learner = learner_glm, verbose = FALSE)
+pr
+```
+
+A target beyond what the instrument can move, such as "everybody takes it",
+is only approximated, and the output says so:
+
+```{r}
+lii_project(d, target = function(visit, history) rep(1, nrow(history)),
+            learner = learner_glm, verbose = FALSE)$projection
+```
+
 ## Diagnostics
 
 ```{r}

@@ -45,3 +45,24 @@ test_that("bootstrap returns finite SEs", {
   expect_true(all(is.finite(b$estimates$boot_se)))
   expect_equal(b$estimates$diff_boot_se[b$estimates$alpha == 1], 0)
 })
+
+test_that("lii_project reaches a reachable target and returns the effect", {
+  sim <- simulate_lii(n = 800, K = 2, seed = 10)
+  d <- lii_data(sim$data, "id", "visit", "R", "A", "Y", covariates = "L", baseline = "W")
+  nu <- lii_nuisance(d, learner = learner_glm, verbose = FALSE)
+  pr <- lii_project(d, target = 1.1, nuisance = nu, learner = learner_glm, verbose = FALSE)
+  expect_length(pr$alpha, 3)
+  expect_true(all(pr$alpha > 1))
+  expect_true(all(abs(pr$projection$implied_p_treat - pr$projection$target_p_treat) < 0.01))
+  expect_true(all(pr$projection$kl_projected <= pr$projection$kl_natural))
+  ## projected effect equals lii_tmle at the same common alpha
+  ft <- lii_tmle(d, alphas = pr$alpha[1], nuisance = nu, learner = learner_glm, verbose = FALSE)
+  expect_equal(pr$effect$estimate[1], ft$estimates$estimate[ft$estimates$alpha == pr$alpha[1]],
+               tolerance = 1e-8)
+  ## per-visit targets and functions
+  pv <- lii_project(d, target = c(1, 1.1, 1.2), nuisance = nu, learner = learner_glm, verbose = FALSE)
+  expect_true(pv$settings$per_visit && pv$alpha[1] < pv$alpha[3])
+  pf <- lii_project(d, target = function(j, h) rep(1, nrow(h)), nuisance = nu,
+                    learner = learner_glm, verbose = FALSE)
+  expect_true(all(pf$projection$implied_p_treat <= pf$projection$reachable_max + 1e-8))
+})

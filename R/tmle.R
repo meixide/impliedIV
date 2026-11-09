@@ -72,51 +72,8 @@ lii_tmle <- function(x, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_h
   if (is.null(nuisance)) nuisance <- lii_nuisance(x, learner, learner_args, lags,
                                                    instrument_markov, verbose)
   n <- x$n; K <- x$K
-  lo <- x$y_range[1]; sc <- diff(x$y_range)
-  Ys <- (x$Y - lo) / sc
-  gR <- pmin(pmax(nuisance$g_R, gbound), 1 - gbound)
-  gC <- pmax(nuisance$g_C, gbound)
-  lam <- pmin(pmax(nuisance$lambda, 0), 1)
-  nxt <- cbind(x$obs[, -1, drop = FALSE], x$y_obs)
-  Hist <- lapply(0:K, function(j) .history(x, j, nuisance$lags, full = TRUE))
-  cache_K <- NULL
-
-  res <- lapply(alphas, function(a) {
-    if (verbose) message("alpha = ", a)
-    h1 <- pmin(a * lam, 1)
-    ratio <- ifelse(x$R == 1, h1 / gR, (1 - h1) / (1 - gR)) / gC
-    ratio[!x$obs] <- NA
-    Hcum <- t(apply(ratio, 1, function(r) cumprod(ifelse(is.na(r), 0, r))))
-    if (K == 0) Hcum <- matrix(Hcum, ncol = 1)
-    Qnext <- Ys
-    D <- rep(0, n); neff <- maxw <- numeric(K + 1)
-    for (j in K:0) {
-      o <- x$obs[, j + 1]; f <- nxt[, j + 1] & o
-      Rj <- x$R[, j + 1]
-      if (j == K && !is.null(cache_K)) {
-        Qb <- cache_K
-      } else {
-        Qb <- .q_arms(learner, learner_args, Hist[[j + 1]], Rj, Qnext, o, f, min_arm,
-                      paste0("Q", j, if (j < K) paste0("_alpha", a)))
-        if (j == K) cache_K <<- Qb
-      }
-      QbR <- ifelse(Rj == 1, Qb[, 2], Qb[, 1])
-      w <- Hcum[f, j + 1]
-      eps <- .fluctuate(Qnext[f], stats::qlogis(QbR[f]), w)
-      Qs <- stats::plogis(stats::qlogis(Qb) + eps)
-      QsR <- ifelse(Rj == 1, Qs[, 2], Qs[, 1])
-      D[f] <- D[f] + w * (Qnext[f] - QsR[f])
-      neff[j + 1] <- if (sum(w) > 0) sum(w)^2 / sum(w^2) else 0
-      maxw[j + 1] <- max(w, 0)
-      Qj <- rep(NA_real_, n)
-      Qj[o] <- h1[o, j + 1] * Qs[o, 2] + (1 - h1[o, j + 1]) * Qs[o, 1]
-      Qnext <- Qj
-    }
-    psi <- mean(Qnext)
-    list(psi = lo + sc * psi, ic = sc * (D + Qnext - psi),
-         p_capped = mean((a * nuisance$lambda > 1)[x$obs]),
-         min_n_eff = min(neff), max_weight = max(maxw))
-  })
+  res <- .tmle_core(x, nuisance, lapply(alphas, rep, x$K + 1), paste0("alpha", alphas),
+                    learner, learner_args, gbound, min_arm, verbose)
 
   ic <- sapply(res, `[[`, "ic"); if (!is.matrix(ic)) ic <- matrix(ic, ncol = 1)
   colnames(ic) <- paste0("alpha_", alphas)
@@ -138,6 +95,58 @@ lii_tmle <- function(x, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_h
                                  lags = nuisance$lags, learner = deparse(substitute(learner)),
                                  outcome = x$names$outcome)),
             class = "lii_fit")
+}
+
+## LTMLE for a list of per-visit scaling vectors `avecs` (each of length K + 1)
+.tmle_core <- function(x, nuisance, avecs, labels, learner, learner_args, gbound, min_arm, verbose) {
+  n <- x$n; K <- x$K
+  lo <- x$y_range[1]; sc <- diff(x$y_range)
+  Ys <- (x$Y - lo) / sc
+  gR <- pmin(pmax(nuisance$g_R, gbound), 1 - gbound)
+  gC <- pmax(nuisance$g_C, gbound)
+  lam <- pmin(pmax(nuisance$lambda, 0), 1)
+  nxt <- cbind(x$obs[, -1, drop = FALSE], x$y_obs)
+  Hist <- lapply(0:K, function(j) .history(x, j, nuisance$lags, full = TRUE))
+  cache_K <- NULL
+
+  res <- lapply(seq_along(avecs), function(k) {
+    a <- avecs[[k]]
+    if (verbose) message("intervention ", labels[k])
+    h1 <- pmin(sweep(lam, 2, a, `*`), 1)
+    ratio <- ifelse(x$R == 1, h1 / gR, (1 - h1) / (1 - gR)) / gC
+    ratio[!x$obs] <- NA
+    Hcum <- t(apply(ratio, 1, function(r) cumprod(ifelse(is.na(r), 0, r))))
+    if (K == 0) Hcum <- matrix(Hcum, ncol = 1)
+    Qnext <- Ys
+    D <- rep(0, n); neff <- maxw <- numeric(K + 1)
+    for (j in K:0) {
+      o <- x$obs[, j + 1]; f <- nxt[, j + 1] & o
+      Rj <- x$R[, j + 1]
+      if (j == K && !is.null(cache_K)) {
+        Qb <- cache_K
+      } else {
+        Qb <- .q_arms(learner, learner_args, Hist[[j + 1]], Rj, Qnext, o, f, min_arm,
+                      paste0("Q", j, if (j < K) paste0("_", labels[k])))
+        if (j == K) cache_K <<- Qb
+      }
+      QbR <- ifelse(Rj == 1, Qb[, 2], Qb[, 1])
+      w <- Hcum[f, j + 1]
+      eps <- .fluctuate(Qnext[f], stats::qlogis(QbR[f]), w)
+      Qs <- stats::plogis(stats::qlogis(Qb) + eps)
+      QsR <- ifelse(Rj == 1, Qs[, 2], Qs[, 1])
+      D[f] <- D[f] + w * (Qnext[f] - QsR[f])
+      neff[j + 1] <- if (sum(w) > 0) sum(w)^2 / sum(w^2) else 0
+      maxw[j + 1] <- max(w, 0)
+      Qj <- rep(NA_real_, n)
+      Qj[o] <- h1[o, j + 1] * Qs[o, 2] + (1 - h1[o, j + 1]) * Qs[o, 1]
+      Qnext <- Qj
+    }
+    psi <- mean(Qnext)
+    list(psi = lo + sc * psi, ic = sc * (D + Qnext - psi),
+         p_capped = mean((sweep(nuisance$lambda, 2, a, `*`) > 1)[x$obs]),
+         min_n_eff = min(neff), max_weight = max(maxw))
+  })
+  res
 }
 
 ## outcome regression by instrument arm; returns n x 2 matrix (r = 0, r = 1), NA outside `o`

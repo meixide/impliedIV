@@ -10,6 +10,12 @@ the outcome by unmeasured factors.
   `P(R(j) = 1 | history) -> alpha * P(R(j) = 1 | history)` at every visit. It
   never asks for the instrument where it does not occur, so there are no
   positivity problems. Contrasts are with `alpha = 1`, the current world.
+- **Projection of a desired treatment intervention.** `lii_project(d, target = 1.2)`
+  answers "what if the treatment were 20% more frequent?" with the closest
+  identifiable intervention. It returns the instrument scaling `alpha` whose
+  implied treatment mechanism is closest in KL to the target (one alpha per
+  visit if wanted), how close it gets, and the estimated causal effect of
+  that projected intervention against the current world.
 - **Implied intervention on the treatment.**
   `g_j(alpha) = pi0 + alpha * lambda_j * (pi1 - pi0)`: only the
   instrument-driven part of treatment moves.
@@ -47,6 +53,9 @@ fit <- lii_tmle(d, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_glm)  
 fit
 plot(fit, diff = TRUE)
 lii_diagnostics(fit)
+
+## desired: 20% more adherence -> closest identifiable intervention and its effect
+lii_project(d, target = 1.2, learner = learner_glm)
 ```
 
 **On real data, follow [AGENTS.md](AGENTS.md)**: data mapping, the order of
