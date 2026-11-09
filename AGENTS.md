@@ -66,8 +66,6 @@ No assumption of "no unmeasured confounding of the treatment" is needed.
 install.packages(c("remotes", "glmnet", "testthat"))
 remotes::install_github("meixide/hapc")     # nuisance learner (C++; needs a compiler)
 remotes::install_github("meixide/impliedIV", build_vignettes = TRUE)
-# private repository: the user sets a GitHub token first (Sys.setenv(GITHUB_PAT = ...));
-# never write the token into a file or a message
 # alternative: git clone https://github.com/meixide/impliedIV && devtools::install("impliedIV")
 library(impliedIV)
 ```

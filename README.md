@@ -34,8 +34,6 @@ interventions* (in preparation).
 install.packages(c("remotes", "glmnet"))
 remotes::install_github("meixide/hapc")        # nuisance learner (C++; needs a compiler)
 remotes::install_github("meixide/impliedIV", build_vignettes = TRUE)
-# private repository: first create a GitHub token with read access and run
-# Sys.setenv(GITHUB_PAT = "<token>")
 ```
 
 ## Quick start (simulated data)
