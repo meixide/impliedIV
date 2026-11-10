@@ -1,7 +1,7 @@
 Package: impliedIV
 Type: Package
 Title: Longitudinal Implied Interventions by Scaling an Instrument's Intensity
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Carlos", "García Meixide", email = "carlos.garcia@icmat.es",
                   role = c("aut", "cre"))
 Description: Estimates the mean outcome under stochastic interventions that

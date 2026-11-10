@@ -10,7 +10,7 @@ Scripts are in `inst/validation/`; results are in
 
 ## 1. Unit tests (`devtools::test()`)
 
-44 expectations, all passing (≈ 8 s), including a check that learner_hapc calls cv.hapc with family = "binomial", norm = "1" (needed for the soft labels) and works with hard and soft labels, and the projection: a reachable target is reached, KL decreases, its effect equals lii_tmle at the same alpha, per-visit targets, and targets beyond the reachable range.
+52 expectations, all passing (≈ 10 s), including a check that learner_hapc calls cv.hapc with family = "binomial", norm = "1" (needed for the soft labels) and works with hard and soft labels, and the projection: a reachable target is reached, KL decreases, its effect equals lii_tmle at the same alpha, per-visit targets, and targets beyond the reachable range.
 - Data preparation and censoring.
 - Rejection of non-binary instruments and of NA covariates.
 - Rescaling of continuous outcomes.
@@ -86,6 +86,34 @@ n = 1000, K = 2, α ∈ {0.5, 1, 1.5}; hapc 2.7.1 (`cv.hapc`, binomial,
 - hapc cost grows roughly like n³ in the rows of a fit, so the default cap
   `max_n = 4000` rows per fit means ≈ 5–6 min per pooled fit on a laptop.
 - This is a single run: coverage with hapc has not been studied.
+
+## 5. Theory checked exactly in a discrete model (`eic_check.R`)
+
+Two visits, seven binary variables, 128 cells; every functional is computed
+exactly.
+- Numerical pathwise derivatives of psi(alpha) along random paths agree with
+  the inner product of the efficient influence curve and the score to
+  3e-11. Without the term for the estimation of the intensity they differ
+  by up to 0.02.
+- The two sides of the exact second-order expansion agree to 1e-17.
+- Third differences of alpha -> psi(alpha) vanish (polynomial of degree 2).
+
+## 6. Simulation study of the paper (`sim_paper.R`, `make_tables.R`)
+
+Three visits, no censoring, per-visit nuisance fits, two scenarios for the
+unmeasured confounder (persistent, renewed at each visit). Estimators:
+`lii_tmle(fixed = TRUE)` and the comparator `lii_naive()`. Summary in
+`inst/validation/results/paper/summary.csv`; the paper's Section 7 has the
+tables. In short, for the contrast psi(alpha) - psi(1):
+- logistic regression, n = 500, 1000, 2000 (200 to 345 replicates): bias
+  below 0.001, coverage 0.92-0.97, with or without the intensity term;
+- hapc, n = 500, persistent scenario (about 100 replicates): bias about a
+  tenth of the contrast, coverage about 0.9; more replicates and larger n
+  need a cluster;
+- the comparator that ignores the instrument recovers one half to three
+  quarters of the contrast, and its coverage goes to zero with n;
+- `lag_sufficiency_test()` rejects at about the nominal rate in the renewed
+  scenario and increasingly often in the persistent one.
 
 ## Not validated yet
 

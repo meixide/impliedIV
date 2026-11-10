@@ -14,7 +14,9 @@ lii_tmle(
   nuisance = NULL,
   gbound = 0.01,
   min_arm = 30L,
-  verbose = TRUE
+  verbose = TRUE,
+  fixed = TRUE,
+  pooled = TRUE
 )
 }
 \arguments{
@@ -37,6 +39,11 @@ one instrument arm; below it, one regression with the instrument as a
 regressor is used.}
 
 \item{verbose}{Print progress.}
+
+\item{fixed}{Also compute the estimator and standard errors for the
+parameter defined with the true instrument intensity (see Details).}
+
+\item{pooled}{Passed to [lii_nuisance()] when `nuisance` is `NULL`.}
 }
 \value{
 An object of class `lii_fit` with
@@ -47,7 +54,11 @@ An object of class `lii_fit` with
     cumulative weights over visits;
   * `implied`: the implied treatment probabilities by visit (see
     [lii_implied()]);
+    with `fixed = TRUE`, the same quantities for the fixed parameter in
+    `estimate_fix`, `se_fix`, `lower_fix`, `upper_fix`, `diff_fix`,
+    `diff_se_fix`, `diff_lower_fix`, `diff_upper_fix`;
   * `ic`: influence-curve matrix (subjects x alphas), on the outcome scale;
+  * `ic_lambda`: the additional influence-curve term of the fixed parameter;
   * `nuisance`, `settings`.
 }
 \description{
@@ -83,9 +94,19 @@ observed. The outcome regressions are fitted separately in each instrument
 arm. The intervention uses the estimated \eqn{\hat\lambda}; standard
 errors come from the influence curve and are valid for the
 *data-adaptive* parameter that treats \eqn{\alpha\hat\lambda} as given
-(Hubbard, Kherad-Pajouh and van der Laan, 2016). For the parameter
-defined with the true \eqn{\lambda}, use [lii_bootstrap()], which refits
-\eqn{\hat\lambda} in every resample.
+(Hubbard, Kherad-Pajouh and van der Laan, 2016).
+
+**Fixed parameter.** With `fixed = TRUE` (default) the output also contains
+the one-step estimator and standard errors for the parameter defined with
+the *true* \eqn{\lambda} (columns ending in `_fix`). The efficient
+influence curve of that parameter has one more term, because the
+intervention depends on the data distribution:
+\eqn{\sum_j \alpha\, b_j(F_j)\{R(j) - \lambda_j(F_j)\}} with
+\eqn{b_j(F_j) = E[W_{j-1}\{Q_j(1, H_j) - Q_j(0, H_j)\} \mid F_j]}, where
+\eqn{W_{j-1}} is the cumulative weight before visit \eqn{j} and
+\eqn{Q_j(r, H_j)} the sequential regression at instrument value \eqn{r}.
+It costs one more regression per visit and per alpha. [lii_bootstrap()]
+is the resampling alternative.
 }
 \examples{
 sim <- simulate_lii(n = 300, K = 2, seed = 2)

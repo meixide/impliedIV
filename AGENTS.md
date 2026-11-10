@@ -151,7 +151,7 @@ fit_glm <- lii_tmle(d, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_gl
 
 ## 2) main analysis, nuisances with hapc
 lii_reset_log()
-nu  <- lii_nuisance(d, learner = learner_hapc)          # fits that do not depend on alpha
+nu  <- lii_nuisance(d, learner = learner_hapc, pooled = FALSE)   # one model per visit: much faster with hapc
 
 ## 2a) the question about the TREATMENT: project it and estimate its effect
 pr <- lii_project(d, target = 1.2, nuisance = nu, learner = learner_hapc)   # "20% more treatment"
@@ -199,9 +199,13 @@ bt <- lii_bootstrap(d, alphas = c(0.5, 1, 1.5), learner = learner_hapc, B = 200)
 | Projection reaches the target | `pr$projection`: `implied_p_treat` vs `target_p_treat`, `reachable_min/max` | target outside the reachable range → the effect is that of the closest reachable intervention; say so |
 
 **Inference.**
-- `fit$estimates` SEs come from the influence curve. They are valid for the
-  *data-adaptive* parameter, which treats the estimated instrument intensity
-  as known.
+- `fit$estimates` has two sets of columns. `estimate`, `se`, `diff`, ... are
+  for the *data-adaptive* parameter, which treats the estimated instrument
+  intensity as known. `estimate_fix`, `se_fix`, `diff_fix`, ... are for the
+  parameter defined with the true intensity; they use the full efficient
+  influence curve, which has one more term. Report the `_fix` columns as the
+  main result unless alpha was chosen from the data (projection,
+  calibration).
 - In simulation with glm, coverage was 0.92–0.95, about 2 points short.
   `lii_bootstrap()`, which refits everything and targets the parameter
   defined with the true intensity, gave the same SEs and the same coverage

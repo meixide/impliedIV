@@ -20,7 +20,9 @@ the outcome by unmeasured factors.
   `g_j(alpha) = pi0 + alpha * lambda_j * (pi1 - pi0)`: only the
   instrument-driven part of treatment moves.
 - **Estimator.** Longitudinal TMLE (sequential regression with targeting),
-  monotone censoring, influence-curve and bootstrap inference.
+  monotone censoring. Inference from the full efficient influence curve,
+  including the closed-form term for the estimation of the instrument
+  intensity, or by bootstrap.
 - **Nuisances.** Estimated with Highly Adaptive Principal Components
   ([hapc](https://github.com/meixide/hapc)) by default, or with logistic
   regression for a quick pass.

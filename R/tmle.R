@@ -31,9 +31,19 @@
 #' arm. The intervention uses the estimated \eqn{\hat\lambda}; standard
 #' errors come from the influence curve and are valid for the
 #' *data-adaptive* parameter that treats \eqn{\alpha\hat\lambda} as given
-#' (Hubbard, Kherad-Pajouh and van der Laan, 2016). For the parameter
-#' defined with the true \eqn{\lambda}, use [lii_bootstrap()], which refits
-#' \eqn{\hat\lambda} in every resample.
+#' (Hubbard, Kherad-Pajouh and van der Laan, 2016).
+#'
+#' **Fixed parameter.** With `fixed = TRUE` (default) the output also contains
+#' the one-step estimator and standard errors for the parameter defined with
+#' the *true* \eqn{\lambda} (columns ending in `_fix`). The efficient
+#' influence curve of that parameter has one more term, because the
+#' intervention depends on the data distribution:
+#' \eqn{\sum_j \alpha\, b_j(F_j)\{R(j) - \lambda_j(F_j)\}} with
+#' \eqn{b_j(F_j) = E[W_{j-1}\{Q_j(1, H_j) - Q_j(0, H_j)\} \mid F_j]}, where
+#' \eqn{W_{j-1}} is the cumulative weight before visit \eqn{j} and
+#' \eqn{Q_j(r, H_j)} the sequential regression at instrument value \eqn{r}.
+#' It costs one more regression per visit and per alpha. [lii_bootstrap()]
+#' is the resampling alternative.
 #'
 #' @param x An object from [lii_data()].
 #' @param alphas Scaling factors. 1 is always added (it is the reference of
@@ -47,6 +57,9 @@
 #'   one instrument arm; below it, one regression with the instrument as a
 #'   regressor is used.
 #' @param verbose Print progress.
+#' @param fixed Also compute the estimator and standard errors for the
+#'   parameter defined with the true instrument intensity (see Details).
+#' @param pooled Passed to [lii_nuisance()] when `nuisance` is `NULL`.
 #' @return An object of class `lii_fit` with
 #'   * `estimates`: one row per alpha: `estimate`, `se`, 95% `lower`/`upper`;
 #'     the contrast with alpha = 1 (`diff`, `diff_se`, `diff_lower`,
@@ -55,7 +68,11 @@
 #'     cumulative weights over visits;
 #'   * `implied`: the implied treatment probabilities by visit (see
 #'     [lii_implied()]);
+#'     with `fixed = TRUE`, the same quantities for the fixed parameter in
+#'     `estimate_fix`, `se_fix`, `lower_fix`, `upper_fix`, `diff_fix`,
+#'     `diff_se_fix`, `diff_lower_fix`, `diff_upper_fix`;
 #'   * `ic`: influence-curve matrix (subjects x alphas), on the outcome scale;
+#'   * `ic_lambda`: the additional influence-curve term of the fixed parameter;
 #'   * `nuisance`, `settings`.
 #' @examples
 #' sim <- simulate_lii(n = 300, K = 2, seed = 2)
@@ -65,15 +82,16 @@
 #' @export
 lii_tmle <- function(x, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_hapc,
                      learner_args = list(), lags = 1L, instrument_markov = FALSE,
-                     nuisance = NULL, gbound = 0.01, min_arm = 30L, verbose = TRUE) {
+                     nuisance = NULL, gbound = 0.01, min_arm = 30L, verbose = TRUE,
+                     fixed = TRUE, pooled = TRUE) {
   stopifnot(inherits(x, "lii_data"))
   if (any(alphas < 0)) stop("alphas must be >= 0.")
   alphas <- sort(unique(c(alphas, 1)))
   if (is.null(nuisance)) nuisance <- lii_nuisance(x, learner, learner_args, lags,
-                                                   instrument_markov, verbose)
+                                                   instrument_markov, verbose, pooled = pooled)
   n <- x$n; K <- x$K
   res <- .tmle_core(x, nuisance, lapply(alphas, rep, x$K + 1), paste0("alpha", alphas),
-                    learner, learner_args, gbound, min_arm, verbose)
+                    learner, learner_args, gbound, min_arm, verbose, fixed = fixed)
 
   ic <- sapply(res, `[[`, "ic"); if (!is.matrix(ic)) ic <- matrix(ic, ncol = 1)
   colnames(ic) <- paste0("alpha_", alphas)
@@ -89,8 +107,20 @@ lii_tmle <- function(x, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_h
     p_capped = vapply(res, `[[`, 0, "p_capped"),
     min_n_eff = vapply(res, `[[`, 0, "min_n_eff"),
     max_weight = vapply(res, `[[`, 0, "max_weight"))
+  ic_lambda <- NULL
+  if (fixed) {
+    ic_lambda <- sapply(res, `[[`, "ic_lambda"); if (!is.matrix(ic_lambda)) ic_lambda <- matrix(ic_lambda, ncol = 1)
+    colnames(ic_lambda) <- colnames(ic)
+    full <- ic + ic_lambda
+    ef <- est + colMeans(ic_lambda)
+    sf <- apply(full, 2, stats::sd) / sqrt(n)
+    dsf <- apply(full - full[, ref], 2, stats::sd) / sqrt(n)
+    estimates <- cbind(estimates, estimate_fix = ef, se_fix = sf, lower_fix = ef - z * sf,
+                       upper_fix = ef + z * sf, diff_fix = ef - ef[ref], diff_se_fix = dsf,
+                       diff_lower_fix = ef - ef[ref] - z * dsf, diff_upper_fix = ef - ef[ref] + z * dsf)
+  }
   structure(list(estimates = estimates, implied = lii_implied(x, nuisance, alphas),
-                 ic = ic, nuisance = nuisance,
+                 ic = ic, ic_lambda = ic_lambda, nuisance = nuisance,
                  settings = list(n = n, K = K, alphas = alphas, gbound = gbound,
                                  lags = nuisance$lags, learner = deparse(substitute(learner)),
                                  outcome = x$names$outcome)),
@@ -98,7 +128,12 @@ lii_tmle <- function(x, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_h
 }
 
 ## LTMLE for a list of per-visit scaling vectors `avecs` (each of length K + 1)
-.tmle_core <- function(x, nuisance, avecs, labels, learner, learner_args, gbound, min_arm, verbose) {
+## `h1_list` (optional): list of n x (K + 1) matrices of intervention probabilities, used instead
+## of alpha * lambda (then `avecs` is ignored). `fixed = TRUE` also returns the component of the
+## efficient influence curve that accounts for the estimation of lambda,
+## sum_j alpha_j b_j(F_j) (R(j) - lambda_j(F_j)), b_j(F_j) = E[W_{j-1} {Q_j(1, H_j) - Q_j(0, H_j)} | F_j].
+.tmle_core <- function(x, nuisance, avecs, labels, learner, learner_args, gbound, min_arm, verbose,
+                       fixed = FALSE, h1_list = NULL) {
   n <- x$n; K <- x$K
   lo <- x$y_range[1]; sc <- diff(x$y_range)
   Ys <- (x$Y - lo) / sc
@@ -109,10 +144,12 @@ lii_tmle <- function(x, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_h
   Hist <- lapply(0:K, function(j) .history(x, j, nuisance$lags, full = TRUE))
   cache_K <- NULL
 
+  if (!is.null(h1_list)) { avecs <- h1_list; fixed <- FALSE }
   res <- lapply(seq_along(avecs), function(k) {
     a <- avecs[[k]]
     if (verbose) message("intervention ", labels[k])
-    h1 <- pmin(sweep(lam, 2, a, `*`), 1)
+    h1 <- if (is.null(h1_list)) pmin(sweep(lam, 2, a, `*`), 1) else pmin(pmax(a, 0), 1)
+    Dl <- rep(0, n)
     ratio <- ifelse(x$R == 1, h1 / gR, (1 - h1) / (1 - gR)) / gC
     ratio[!x$obs] <- NA
     Hcum <- t(apply(ratio, 1, function(r) cumprod(ifelse(is.na(r), 0, r))))
@@ -137,16 +174,31 @@ lii_tmle <- function(x, alphas = c(0.5, 0.75, 1, 1.25, 1.5), learner = learner_h
       D[f] <- D[f] + w * (Qnext[f] - QsR[f])
       neff[j + 1] <- if (sum(w) > 0) sum(w)^2 / sum(w^2) else 0
       maxw[j + 1] <- max(w, 0)
+      if (fixed) {
+        Wprev <- if (j == 0) rep(1, n) else Hcum[, j]
+        Fh <- .history(x, j, nuisance$lags, full = FALSE)[o, , drop = FALSE]
+        b <- .fit_real(learner, learner_args, Fh, Wprev[o] * (Qs[o, 2] - Qs[o, 1]),
+                       paste0("b", j, "_", labels[k]))
+        open <- a[j + 1] * nuisance$lambda[o, j + 1] < 1
+        Dl[o] <- Dl[o] + a[j + 1] * open * b * (Rj[o] - lam[o, j + 1])
+      }
       Qj <- rep(NA_real_, n)
       Qj[o] <- h1[o, j + 1] * Qs[o, 2] + (1 - h1[o, j + 1]) * Qs[o, 1]
       Qnext <- Qj
     }
     psi <- mean(Qnext)
-    list(psi = lo + sc * psi, ic = sc * (D + Qnext - psi),
-         p_capped = mean((sweep(nuisance$lambda, 2, a, `*`) > 1)[x$obs]),
+    list(psi = lo + sc * psi, ic = sc * (D + Qnext - psi), ic_lambda = sc * Dl,
+         p_capped = if (is.null(h1_list)) mean((sweep(nuisance$lambda, 2, a, `*`) > 1)[x$obs]) else 0,
          min_n_eff = min(neff), max_weight = max(maxw))
   })
   res
+}
+
+## regression of a real-valued response, through the [0, 1] learners (response rescaled by its range)
+.fit_real <- function(learner, learner_args, X, Z, label) {
+  rg <- range(Z)
+  if (diff(rg) < 1e-10) return(rep(mean(Z), length(Z)))
+  rg[1] + diff(rg) * .fit_predict(learner, learner_args, X, (Z - rg[1]) / diff(rg), list(X), label)[[1]]
 }
 
 ## outcome regression by instrument arm; returns n x 2 matrix (r = 0, r = 1), NA outside `o`
@@ -191,6 +243,14 @@ print.lii_fit <- function(x, digits = 4, ...) {
                           diff_ci95 = sprintf("[%.*f, %.*f]", digits, e$diff_lower, digits, e$diff_upper),
                           p_capped = e$p_capped, min_n_eff = round(e$min_n_eff)),
                digits = digits), row.names = FALSE)
+  if (!is.null(e$estimate_fix)) {
+    cat("\nParameter defined with the true instrument intensity (full efficient influence curve):\n")
+    print(format(data.frame(alpha = e$alpha, estimate = e$estimate_fix, se = e$se_fix,
+                            ci95 = sprintf("[%.*f, %.*f]", digits, e$lower_fix, digits, e$upper_fix),
+                            diff_vs_1 = e$diff_fix,
+                            diff_ci95 = sprintf("[%.*f, %.*f]", digits, e$diff_lower_fix, digits, e$diff_upper_fix)),
+                 digits = digits), row.names = FALSE)
+  }
   if (any(e$p_capped > 0.05))
     cat("\nNote: for some alphas more than 5% of visits have alpha*lambda > 1 (capped at 1).\n")
   invisible(x)

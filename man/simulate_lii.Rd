@@ -10,7 +10,8 @@ simulate_lii(
   r0 = -0.5,
   effect = -0.6,
   censoring = TRUE,
-  seed = NULL
+  seed = NULL,
+  confounder = c("persistent", "fresh")
 )
 }
 \arguments{
@@ -25,10 +26,13 @@ simulate_lii(
 \item{censoring}{Simulate censoring.}
 
 \item{seed}{Seed, or `NULL`.}
+
+\item{confounder}{`"persistent"` or `"fresh"` unmeasured confounder (see Details).}
 }
 \value{
 A list with `data` (long `data.frame`: `id`, `visit`, `W`, `L`, `R`,
-  `A`, `Y` on the last row of each subject) and the function `truth`.
+  `A`, `Y` on the last row of each subject) and the functions `truth` and
+  `truth_treatment`.
 }
 \description{
 Prescription -> adherence toy model with visits `0..K`:
@@ -46,6 +50,16 @@ Prescription -> adherence toy model with visits `0..K`:
   with adherence, `L(K)`, `W` and `U`, never on `R` (exclusion).
 }
 \details{
+With `confounder = "persistent"` (default) the unmeasured `U` is one
+variable per subject. Then past prescriptions, together with past
+adherence, carry information about `U`, so adherence is *not*
+conditionally independent of past prescriptions given the current one and
+\eqn{F_j}, although no past prescription enters its structural equation.
+With `confounder = "fresh"` a new independent `U(j)` is drawn at each
+visit (affecting `A(j)`, `L(j+1)` and, for the last one, `Y`), and that
+conditional independence holds.
+
 `truth(alphas)` returns Monte Carlo values of \eqn{\psi(\alpha)} (no
-censoring), for checking estimators.
+censoring), for checking estimators; `truth_treatment(alphas)` returns the
+probability of adherence at each visit in the intervened world.
 }

@@ -10,7 +10,9 @@ lii_nuisance(
   learner_args = list(),
   lags = 1L,
   instrument_markov = FALSE,
-  verbose = TRUE
+  verbose = TRUE,
+  pooled = TRUE,
+  parts = c("lambda", "g_R", "g_C", "pi")
 )
 }
 \arguments{
@@ -25,6 +27,13 @@ lii_nuisance(
 \item{instrument_markov}{Logical; see above.}
 
 \item{verbose}{Print progress.}
+
+\item{pooled}{One model pooled over visits, with the visit index as a
+regressor (`TRUE`), or one model per visit (`FALSE`). Per-visit fits are
+more flexible and, with hapc, much faster (its cost grows like the cube
+of the number of rows), but need enough subjects at every visit.}
+
+\item{parts}{Internal: which nuisances to fit.}
 }
 \value{
 An object of class `lii_nuisance`: matrices (subjects x visits) of

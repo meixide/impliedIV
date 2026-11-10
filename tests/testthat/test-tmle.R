@@ -66,3 +66,21 @@ test_that("lii_project reaches a reachable target and returns the effect", {
                     learner = learner_glm, verbose = FALSE)
   expect_true(all(pf$projection$implied_p_treat <= pf$projection$reachable_max + 1e-8))
 })
+
+test_that("fixed-parameter output, per-visit fits and the naive comparator run", {
+  sim <- simulate_lii(n = 600, K = 2, seed = 11, censoring = FALSE, confounder = "fresh")
+  expect_equal(dim(sim$truth_treatment(c(0.5, 1), n_mc = 2000)), c(2L, 3L))
+  d <- lii_data(sim$data, "id", "visit", "R", "A", "Y", covariates = "L", baseline = "W")
+  nu <- lii_nuisance(d, learner = learner_glm, pooled = FALSE, verbose = FALSE)
+  fit <- lii_tmle(d, alphas = c(0.5, 1.5), learner = learner_glm, nuisance = nu, verbose = FALSE)
+  e <- fit$estimates
+  expect_true(all(c("estimate_fix", "se_fix", "diff_fix", "diff_se_fix") %in% names(e)))
+  expect_equal(dim(fit$ic_lambda), dim(fit$ic))
+  expect_true(all(abs(e$estimate_fix - e$estimate) < e$se))
+  expect_true(all(e$se_fix > 0))
+  f0 <- lii_tmle(d, alphas = 0.5, learner = learner_glm, nuisance = nu, fixed = FALSE, verbose = FALSE)
+  expect_null(f0$ic_lambda)
+  nv <- lii_naive(d, c(0.5, 1.5), nu, learner = learner_glm, verbose = FALSE)
+  expect_equal(nv$alpha, c(0.5, 1, 1.5))
+  expect_lt(abs(nv$estimate[2] - mean(d$Y)), 0.02)
+})
